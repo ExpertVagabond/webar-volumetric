@@ -20,36 +20,61 @@
   <meta name="twitter:image" content="/og-image.png">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    :root { --bg:#08080f; --surface:#111119; --purple:#8b5cf6; --purple-light:#c084fc; --cyan:#00b5ad; --green:#00edaf; --text:#eae6f2; --text-dim:#7b7390; }
+    :root { --bg:#08080f; --surface:#111119; --purple:#8b5cf6; --purple-light:#c084fc; --cyan:#00b5ad; --green:#00edaf; --orange:#f2711c; --text:#eae6f2; --text-dim:#7b7390; }
     *{margin:0;padding:0;box-sizing:border-box}
     html,body{height:100%;overflow:hidden}
     body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text)}
 
+    /* ── Page entrance animation ── */
+    @keyframes pageReveal{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .hud,.controls,.info-badge{animation:pageReveal 0.6s ease-out both}
+    .hud{animation-delay:0.3s}
+    .controls{animation-delay:0.5s}
+    .info-badge{animation-delay:0.7s}
+
     #viewer{position:fixed;inset:0}
 
-    .hud{position:fixed;top:0;left:0;right:0;z-index:10;padding:0.75rem 1rem;background:linear-gradient(180deg,rgba(8,8,15,0.9),transparent);display:flex;justify-content:space-between;align-items:center}
-    .hud h1{font-size:1.1rem;font-weight:700;background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    /* ── HUD — Glassmorphism ── */
+    .hud{position:fixed;top:0;left:0;right:0;z-index:10;padding:0.75rem 1rem;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);background:rgba(8,8,15,.6);border-bottom:1px solid rgba(242,113,28,.08);box-shadow:0 4px 20px rgba(0,0,0,.3);display:flex;justify-content:space-between;align-items:center}
+    .hud h1{font-size:1.1rem;font-weight:700;background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
     .hud-right{display:flex;align-items:center;gap:0.5rem}
-    #demo-name{font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--cyan)}
+    #demo-name{font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--cyan);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);background:rgba(0,181,173,.08);border:1px solid rgba(0,237,175,.12);border-radius:20px;padding:0.25rem 0.75rem;letter-spacing:0.02em}
 
-    .controls{position:fixed;bottom:0;left:0;right:0;z-index:10;padding:1rem;background:linear-gradient(0deg,rgba(8,8,15,0.95),transparent);display:flex;flex-direction:column;gap:0.75rem;align-items:center}
+    /* ── Controls bar — Premium glass ── */
+    .controls{position:fixed;bottom:0;left:0;right:0;z-index:10;padding:1rem;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);background:rgba(8,8,15,.7);border-top:1px solid rgba(255,255,255,.04);box-shadow:0 -4px 30px rgba(0,0,0,.4);display:flex;flex-direction:column;gap:0.75rem;align-items:center}
     .btn-row{display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center}
-    .ctrl-btn{background:var(--surface);border:1px solid rgba(255,255,255,0.1);color:var(--text);font-family:'Outfit',sans-serif;font-weight:600;font-size:0.85rem;padding:0.6rem 1.2rem;border-radius:10px;cursor:pointer;transition:all 0.2s}
-    .ctrl-btn:active{transform:scale(0.95);background:var(--purple)}
-    .ctrl-btn.active{border-color:var(--green);color:var(--green)}
+    .ctrl-btn{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);background:rgba(14,14,30,.6);border:1px solid rgba(255,255,255,0.08);color:var(--text);font-family:'Outfit',sans-serif;font-weight:600;font-size:0.85rem;padding:0.7rem 1.3rem;border-radius:12px;cursor:pointer;transition:all 0.25s cubic-bezier(.4,0,.2,1);box-shadow:0 2px 8px rgba(0,0,0,.2)}
+    .ctrl-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3);background:rgba(14,14,30,.8);border-color:rgba(255,255,255,.12)}
+    .ctrl-btn:active{transform:scale(0.95) translateY(0);background:var(--purple);box-shadow:0 2px 12px rgba(139,92,246,.3)}
+    .ctrl-btn.active{border-color:var(--green);color:var(--green);box-shadow:0 0 12px rgba(0,237,175,.15);animation:activeGlow 2s ease-in-out infinite}
+    @keyframes activeGlow{0%,100%{box-shadow:0 0 12px rgba(0,237,175,.15);border-color:var(--green)}50%{box-shadow:0 0 20px rgba(0,237,175,.3),0 0 40px rgba(0,237,175,.08);border-color:rgba(0,237,175,.8)}}
 
+    /* ── Sliders — Custom styled range ── */
     .sliders{display:flex;gap:1rem;width:100%;max-width:400px}
-    .slider-group{flex:1;display:flex;flex-direction:column;gap:0.2rem}
-    .slider-group label{font-size:0.7rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace}
-    .slider-group input[type=range]{width:100%;accent-color:var(--purple);height:4px}
+    .slider-group{flex:1;display:flex;flex-direction:column;gap:0.35rem}
+    .slider-group label{font-size:0.7rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;letter-spacing:0.04em;opacity:0.85}
+    .slider-group input[type=range]{width:100%;height:4px;-webkit-appearance:none;appearance:none;background:transparent;cursor:pointer}
+    .slider-group input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(90deg,var(--purple),var(--purple-light))}
+    .slider-group input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:linear-gradient(90deg,var(--purple),var(--purple-light));border:none}
+    .slider-group input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--green);margin-top:-6px;border:2px solid rgba(8,8,15,.5);box-shadow:0 0 8px rgba(0,237,175,.4),0 0 16px rgba(0,237,175,.15);transition:box-shadow 0.2s}
+    .slider-group input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--green);border:2px solid rgba(8,8,15,.5);box-shadow:0 0 8px rgba(0,237,175,.4),0 0 16px rgba(0,237,175,.15);transition:box-shadow 0.2s}
+    .slider-group input[type=range]:hover::-webkit-slider-thumb{box-shadow:0 0 12px rgba(0,237,175,.6),0 0 24px rgba(0,237,175,.25)}
+    .slider-group input[type=range]:hover::-moz-range-thumb{box-shadow:0 0 12px rgba(0,237,175,.6),0 0 24px rgba(0,237,175,.25)}
 
-    .info-badge{position:fixed;bottom:150px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim);z-index:10;text-align:center;pointer-events:none;max-width:350px;line-height:1.6}
+    /* ── AI Prompt input — Glass + purple focus ── */
+    /* (targets the inline-styled input via ID) */
+    #ai-prompt{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);background:rgba(14,14,30,.5) !important;border:1px solid rgba(139,92,246,.12) !important;padding:0.55rem 0.85rem !important;border-radius:10px !important;transition:all 0.25s ease !important}
+    #ai-prompt:focus{border-color:rgba(139,92,246,.5) !important;box-shadow:0 0 0 3px rgba(139,92,246,.15),0 0 20px rgba(139,92,246,.1) !important;background:rgba(14,14,30,.7) !important}
+    #ai-prompt::placeholder{color:var(--text-dim);opacity:0.6}
+
+    /* ── Info Badge — Glass pill ── */
+    .info-badge{position:fixed;bottom:150px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim);z-index:10;text-align:center;pointer-events:none;max-width:350px;line-height:1.6;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);background:rgba(14,14,30,.7);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:0.6rem 1rem;box-shadow:0 4px 16px rgba(0,0,0,.25)}
     @media (max-width:500px){.info-badge{display:none}.btn-row{gap:0.3rem}.ctrl-btn{font-size:0.75rem;padding:0.5rem 0.8rem}}
 
     /* ── PSM Cross-Product Footer ── */
     .psm-footer{position:fixed;bottom:0;left:0;right:0;z-index:30;pointer-events:none;opacity:0;transition:opacity 0.4s}
     .psm-footer.show{opacity:1;pointer-events:auto}
-    .psm-footer-inner{display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;background:rgba(8,8,15,0.92);backdrop-filter:blur(16px);border-top:1px solid rgba(139,92,246,0.1);overflow-x:auto}
+    .psm-footer-inner{display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;background:rgba(8,8,15,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(139,92,246,0.1);overflow-x:auto;box-shadow:0 -2px 16px rgba(0,0,0,.3)}
     .psm-footer-brand{display:flex;align-items:center;gap:0.4rem;flex-shrink:0;text-decoration:none;color:var(--text);font-weight:700;font-size:0.7rem;padding-right:0.5rem;border-right:1px solid rgba(255,255,255,0.06)}
     .psm-footer-brand img{width:20px;height:20px;border-radius:50%}
     .psm-footer-links{display:flex;gap:0.3rem;flex:1;overflow-x:auto;scrollbar-width:none}
@@ -58,13 +83,13 @@
     .psm-footer-link:hover{color:var(--text);border-color:rgba(139,92,246,0.2);background:rgba(139,92,246,0.06)}
     .psm-footer-link.current{color:#8b5cf6;border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.08)}
 
-    /* ── Loading splash ── */
-    .splash{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;transition:opacity .5s,visibility .5s}
+    /* ── Loading splash — Ambient glow ── */
+    .splash{position:fixed;inset:0;z-index:9999;background:radial-gradient(ellipse 60% 50% at 50% 45%,rgba(242,113,28,.12),transparent 70%),radial-gradient(ellipse 50% 40% at 50% 50%,rgba(139,92,246,.1),transparent 65%),linear-gradient(180deg,#06060c 0%,#08080f 40%,#0a0812 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;transition:opacity .5s,visibility .5s}
     .splash.done{opacity:0;visibility:hidden;pointer-events:none}
-    .splash-logo{width:48px;height:48px;border-radius:50%;animation:splashPulse 1.2s ease-in-out infinite}
-    .splash-bar{width:100px;height:3px;border-radius:2px;background:rgba(255,255,255,.05);overflow:hidden}
-    .splash-bar-fill{height:100%;width:0;border-radius:2px;background:linear-gradient(90deg,var(--purple),var(--cyan,#00b5ad));animation:splashLoad .8s ease-out forwards}
-    @keyframes splashPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.08);opacity:.7}}
+    .splash-logo{width:56px;height:56px;border-radius:50%;animation:splashPulse 1.2s ease-in-out infinite;box-shadow:0 0 30px rgba(242,113,28,.25),0 0 60px rgba(139,92,246,.15),0 0 90px rgba(242,113,28,.08)}
+    .splash-bar{width:120px;height:3px;border-radius:2px;background:rgba(255,255,255,.05);overflow:hidden;margin-top:4px}
+    .splash-bar-fill{height:100%;width:0;border-radius:2px;background:linear-gradient(90deg,var(--orange),var(--purple),var(--cyan));animation:splashLoad .8s ease-out forwards}
+    @keyframes splashPulse{0%,100%{transform:scale(1);opacity:1;box-shadow:0 0 30px rgba(242,113,28,.25),0 0 60px rgba(139,92,246,.15)}50%{transform:scale(1.08);opacity:.7;box-shadow:0 0 45px rgba(242,113,28,.35),0 0 80px rgba(139,92,246,.25)}}
     @keyframes splashLoad{to{width:100%}}
   </style>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Volumetric Video","description":"Real-time chroma-key compositing with GLSL shader removal. AI scene generation and AR camera mode.","applicationCategory":"WebApplication","operatingSystem":"Web Browser","author":{"@type":"Organization","name":"Purple Squirrel Media","url":"https://purplesquirrelmedia.io"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
