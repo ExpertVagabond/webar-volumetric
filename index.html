@@ -54,6 +54,12 @@
     <div class="btn-row">
       <button class="ctrl-btn active" id="toggle-chroma">ChromaKey: ON</button>
       <button class="ctrl-btn" id="next-demo">Next Demo &rarr;</button>
+      <button class="ctrl-btn" id="ai-generate">&#129302; AI Generate</button>
+      <button class="ctrl-btn" id="ar-camera" data-active="false">&#128247; AR Mode</button>
+    </div>
+    <div style="width:100%;max-width:400px;display:flex;gap:0.5rem;align-items:center">
+      <label style="font-size:0.6rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;white-space:nowrap">AI Prompt</label>
+      <input type="text" id="ai-prompt" placeholder="holographic dancer on stage" style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.4rem 0.6rem;border-radius:8px;outline:none">
     </div>
     <div class="sliders">
       <div class="slider-group">

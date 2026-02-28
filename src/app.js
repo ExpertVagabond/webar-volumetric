@@ -55,6 +55,27 @@ const DEMOS = [
   { name: 'Particle Storm', draw: drawParticles },
 ]
 let currentDemo = 0
+let aiImageLoading = false
+
+// AI Scene Generation
+const AI_SCENE_PROMPTS = [
+  'holographic dancer performing in neon lights dark stage',
+  'floating crystal orb with swirling energy inside dark void',
+  'ethereal ghost figure glowing translucent on dark background',
+  'robot DJ with turntables neon cyberpunk stage dark background',
+  'phoenix bird made of fire rising dark background',
+  'astronaut floating in space with stars and nebula',
+  'samurai warrior with glowing sword dark misty background',
+  'dragon breathing colorful fire dark fantasy background',
+]
+let aiPromptIndex = 0
+
+function generateAIScene(customPrompt) {
+  const prompt = customPrompt || AI_SCENE_PROMPTS[aiPromptIndex % AI_SCENE_PROMPTS.length]
+  aiPromptIndex++
+  const encoded = encodeURIComponent(prompt + ', centered subject, green screen background, chroma key ready, high contrast')
+  return `https://image.pollinations.ai/prompt/${encoded}?width=512&height=512&seed=${Date.now()}&model=flux`
+}
 
 function init() {
   const container = document.getElementById('viewer')
@@ -189,6 +210,120 @@ function init() {
   }
   document.getElementById('smoothness').oninput = (e) => {
     material.uniforms.smoothness.value = parseFloat(e.target.value)
+  }
+
+  // AI Generate button
+  document.getElementById('ai-generate').onclick = async () => {
+    if (aiImageLoading) return
+    aiImageLoading = true
+    const btn = document.getElementById('ai-generate')
+    btn.textContent = 'Generating...'
+    btn.style.opacity = '0.5'
+
+    const promptInput = document.getElementById('ai-prompt')
+    const customPrompt = promptInput?.value?.trim() || null
+
+    try {
+      const url = generateAIScene(customPrompt)
+      const loader = new THREE.TextureLoader()
+      const tex = await new Promise((resolve, reject) => {
+        loader.load(url, resolve, undefined, reject)
+      })
+
+      // Create a new canvas to draw the AI image on green background
+      const aiCanvas = document.createElement('canvas')
+      aiCanvas.width = 512
+      aiCanvas.height = 512
+      const aiCtx = aiCanvas.getContext('2d')
+
+      // Draw the AI image
+      aiCtx.drawImage(tex.image, 0, 0, 512, 512)
+      const aiTexture = new THREE.CanvasTexture(aiCanvas)
+      aiTexture.minFilter = THREE.LinearFilter
+
+      // Replace the video mesh texture
+      material.uniforms.tex.value = aiTexture
+      material.uniforms.tex.value.needsUpdate = true
+
+      // Also update the preview mesh
+      scene.traverse((obj) => {
+        if (obj.userData?.isPreview) {
+          obj.material.map = aiTexture
+          obj.material.needsUpdate = true
+        }
+      })
+
+      // Add AI draw to demo list
+      DEMOS.push({
+        name: 'AI: ' + (customPrompt || AI_SCENE_PROMPTS[(aiPromptIndex - 1) % AI_SCENE_PROMPTS.length]).substring(0, 25),
+        draw: (ctx, w, h, t) => {
+          ctx.drawImage(tex.image, 0, 0, w, h)
+        },
+      })
+      currentDemo = DEMOS.length - 1
+      document.getElementById('demo-name').textContent = DEMOS[currentDemo].name
+
+      // Reset source texture reference
+      sourceTexture = aiTexture
+
+      showToast('AI scene loaded!')
+    } catch (err) {
+      console.error('AI generation failed:', err)
+      showToast('AI generation failed — try again')
+    } finally {
+      aiImageLoading = false
+      btn.textContent = '🤖 AI Generate'
+      btn.style.opacity = '1'
+    }
+  }
+
+  // AR Camera mode
+  document.getElementById('ar-camera').onclick = async () => {
+    const btn = document.getElementById('ar-camera')
+    if (btn.dataset.active === 'true') {
+      // Stop AR
+      if (window._arStream) {
+        window._arStream.getTracks().forEach((t) => t.stop())
+        window._arStream = null
+      }
+      const vid = document.getElementById('ar-video')
+      if (vid) vid.remove()
+      renderer.setClearColor(0x08080f, 1)
+      scene.traverse((obj) => {
+        if (obj.isGridHelper) obj.visible = true
+      })
+      btn.dataset.active = 'false'
+      btn.textContent = '📷 AR Mode'
+      btn.classList.remove('active')
+      showToast('AR mode off')
+    } else {
+      // Start AR
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 } },
+        })
+        window._arStream = stream
+        const vid = document.createElement('video')
+        vid.id = 'ar-video'
+        vid.srcObject = stream
+        vid.setAttribute('playsinline', '')
+        vid.setAttribute('autoplay', '')
+        vid.muted = true
+        vid.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1;'
+        document.body.insertBefore(vid, document.body.firstChild)
+        await vid.play()
+        renderer.setClearColor(0x000000, 0)
+        scene.traverse((obj) => {
+          if (obj.isGridHelper) obj.visible = false
+        })
+        btn.dataset.active = 'true'
+        btn.textContent = '📱 3D View'
+        btn.classList.add('active')
+        showToast('AR Camera active — content overlays your view')
+      } catch (err) {
+        showToast('Camera access denied')
+      }
+    }
   }
 
   window.addEventListener('resize', () => {
@@ -413,6 +548,21 @@ function animate() {
   })
 
   renderer.render(scene, camera)
+}
+
+function showToast(msg) {
+  // Remove existing toast
+  let toast = document.getElementById('vol-toast')
+  if (!toast) {
+    toast = document.createElement('div')
+    toast.id = 'vol-toast'
+    toast.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:100;background:#111119;border:1px solid #00edaf;color:#eae6f2;padding:0.6rem 1.2rem;border-radius:10px;font-size:0.85rem;opacity:0;transition:all 0.3s;pointer-events:none;font-family:Outfit,sans-serif'
+    document.body.appendChild(toast)
+  }
+  toast.textContent = msg
+  toast.style.opacity = '1'
+  clearTimeout(toast._timer)
+  toast._timer = setTimeout(() => { toast.style.opacity = '0' }, 3000)
 }
 
 document.addEventListener('DOMContentLoaded', init)
