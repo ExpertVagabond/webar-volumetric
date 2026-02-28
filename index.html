@@ -23,7 +23,7 @@
     :root { --bg:#08080f; --surface:#111119; --purple:#8b5cf6; --purple-light:#c084fc; --cyan:#00b5ad; --green:#00edaf; --orange:#f2711c; --text:#eae6f2; --text-dim:#7b7390; }
     *{margin:0;padding:0;box-sizing:border-box}
     html,body{height:100%;overflow:hidden}
-    body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text)}
+    body{font-family:'Outfit',sans-serif;background:transparent;color:var(--text)}
 
     /* ── Page entrance animation ── */
     @keyframes pageReveal{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -84,7 +84,10 @@
     .psm-footer-link.current{color:#8b5cf6;border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.08)}
 
     /* ── Loading splash — Ambient glow ── */
-    .splash{position:fixed;inset:0;z-index:9999;background:radial-gradient(ellipse 60% 50% at 50% 45%,rgba(242,113,28,.12),transparent 70%),radial-gradient(ellipse 50% 40% at 50% 50%,rgba(139,92,246,.1),transparent 65%),linear-gradient(180deg,#06060c 0%,#08080f 40%,#0a0812 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;transition:opacity .5s,visibility .5s}
+    /* ── Shader background canvas ── */
+    #shader-bg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;display:block}
+
+    .splash{position:fixed;inset:0;z-index:9999;background:radial-gradient(ellipse 60% 50% at 50% 45%,rgba(242,113,28,.06),transparent 70%),radial-gradient(ellipse 50% 40% at 50% 50%,rgba(139,92,246,.05),transparent 65%),linear-gradient(180deg,rgba(6,6,12,.5) 0%,rgba(8,8,15,.5) 40%,rgba(10,8,18,.5) 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;transition:opacity .5s,visibility .5s}
     .splash.done{opacity:0;visibility:hidden;pointer-events:none}
     .splash-logo{width:56px;height:56px;border-radius:50%;animation:splashPulse 1.2s ease-in-out infinite;box-shadow:0 0 30px rgba(242,113,28,.25),0 0 60px rgba(139,92,246,.15),0 0 90px rgba(242,113,28,.08)}
     .splash-bar{width:120px;height:3px;border-radius:2px;background:rgba(255,255,255,.05);overflow:hidden;margin-top:4px}
@@ -95,6 +98,8 @@
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Volumetric Video","description":"Real-time chroma-key compositing with GLSL shader removal. AI scene generation and AR camera mode.","applicationCategory":"WebApplication","operatingSystem":"Web Browser","author":{"@type":"Organization","name":"Purple Squirrel Media","url":"https://purplesquirrelmedia.io"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
 </head>
 <body>
+
+  <canvas id="shader-bg"></canvas>
 
   <div class="splash" id="splash">
     <img src="/logo-nav.jpg" alt="PSM" class="splash-logo">
@@ -162,6 +167,187 @@
   <script>
   window.addEventListener('load',()=>setTimeout(()=>document.getElementById('splash').classList.add('done'),800));
   document.querySelectorAll('.psm-footer-link').forEach(l=>{l.addEventListener('mouseenter',()=>{if(l.classList.contains('current'))return;const p=document.createElement('link');p.rel='prefetch';p.href=l.href;if(!document.querySelector('link[href="'+l.href+'"]'))document.head.appendChild(p)},{once:true})});
+  </script>
+
+  <!-- Volumetric fog / ray-marching shader background -->
+  <script>
+  (function() {
+    var canvas = document.getElementById('shader-bg');
+    var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) return;
+
+    var dpr = (window.devicePixelRatio || 1) * 0.5;
+
+    function resize() {
+      canvas.width  = window.innerWidth  * dpr;
+      canvas.height = window.innerHeight * dpr;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    /* Vertex shader — fullscreen quad */
+    var vsSource = [
+      'attribute vec2 a_pos;',
+      'void main(){gl_Position=vec4(a_pos,0.0,1.0);}'
+    ].join('\n');
+
+    /* Fragment shader — volumetric fog via simplified ray marching + fBm */
+    var fsSource = [
+      'precision mediump float;',
+      'uniform float u_time;',
+      'uniform vec2 u_resolution;',
+      '',
+      '/* Hash-based pseudo-random — fast, no textures */',
+      'float hash(vec3 p){',
+      '  p=fract(p*0.3183099+.1);',
+      '  p*=17.0;',
+      '  return fract(p.x*p.y*p.z*(p.x+p.y+p.z));',
+      '}',
+      '',
+      '/* Value noise with smooth interpolation */',
+      'float noise(vec3 p){',
+      '  vec3 i=floor(p);',
+      '  vec3 f=fract(p);',
+      '  f=f*f*(3.0-2.0*f);',
+      '  return mix(mix(mix(hash(i+vec3(0,0,0)),hash(i+vec3(1,0,0)),f.x),',
+      '                 mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),',
+      '             mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),',
+      '                 mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);',
+      '}',
+      '',
+      '/* Fractional Brownian Motion — 5 octaves for rich detail */',
+      'float fbm(vec3 p){',
+      '  float v=0.0;float a=0.5;',
+      '  vec3 shift=vec3(100.0);',
+      '  for(int i=0;i<5;i++){',
+      '    v+=a*noise(p);',
+      '    p=p*2.0+shift;',
+      '    a*=0.5;',
+      '  }',
+      '  return v;',
+      '}',
+      '',
+      '/* Volumetric density field — swirling nebula */',
+      'float map(vec3 p){',
+      '  float t=u_time*0.08;',
+      '  /* Domain warping: distort coords with fbm for organic swirl */',
+      '  vec3 q=vec3(',
+      '    fbm(p+vec3(0.0,0.0,t)),',
+      '    fbm(p+vec3(5.2,1.3,t*0.7)),',
+      '    fbm(p+vec3(2.1,3.7,t*0.5))',
+      '  );',
+      '  vec3 r=vec3(',
+      '    fbm(p+4.0*q+vec3(1.7,9.2,t*0.4)),',
+      '    fbm(p+4.0*q+vec3(8.3,2.8,t*0.6)),',
+      '    0.0',
+      '  );',
+      '  return fbm(p+4.0*r);',
+      '}',
+      '',
+      'void main(){',
+      '  vec2 uv=(gl_FragCoord.xy-0.5*u_resolution)/min(u_resolution.x,u_resolution.y);',
+      '',
+      '  /* Camera setup — looking into the fog */',
+      '  vec3 ro=vec3(0.0,0.0,-1.0);  /* ray origin */',
+      '  vec3 rd=normalize(vec3(uv,1.0));  /* ray direction */',
+      '',
+      '  /* Ray march through volumetric fog */',
+      '  float density=0.0;',
+      '  vec3 col=vec3(0.0);',
+      '  float t=0.0;',
+      '  float dt=0.15;  /* step size — larger = faster, less detail */',
+      '',
+      '  for(int i=0;i<32;i++){',
+      '    vec3 p=ro+rd*t;',
+      '    /* Slow swirl around z axis */',
+      '    float angle=u_time*0.03;',
+      '    float cs=cos(angle);float sn=sin(angle);',
+      '    p.xy=mat2(cs,-sn,sn,cs)*p.xy;',
+      '',
+      '    float d=map(p*0.6);',
+      '    d=smoothstep(0.3,0.9,d);',
+      '',
+      '    /* Color: orange core, purple edges, dark base */',
+      '    vec3 localCol=mix(',
+      '      vec3(0.12,0.03,0.08),  /* deep purple-black */',
+      '      mix(',
+      '        vec3(0.55,0.15,0.45),  /* rich purple */',
+      '        vec3(0.9,0.45,0.1),    /* warm orange */',
+      '        d*d',
+      '      ),',
+      '      d',
+      '    );',
+      '',
+      '    /* Accumulate density and color — front-to-back compositing */',
+      '    float alpha=d*0.06;',
+      '    col+=localCol*alpha*(1.0-density);',
+      '    density+=alpha*(1.0-density);',
+      '',
+      '    if(density>0.95)break;',
+      '    t+=dt;',
+      '  }',
+      '',
+      '  /* Subtle vignette to darken edges */',
+      '  float vig=1.0-0.5*dot(uv,uv);',
+      '  col*=vig;',
+      '',
+      '  /* Keep it subtle — scale overall brightness */',
+      '  col*=1.8;',
+      '',
+      '  gl_FragColor=vec4(col,1.0);',
+      '}'
+    ].join('\n');
+
+    function compile(type, source) {
+      var s = gl.createShader(type);
+      gl.shaderSource(s, source);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error('Shader compile error:', gl.getShaderInfoLog(s));
+        gl.deleteShader(s);
+        return null;
+      }
+      return s;
+    }
+
+    var vs = compile(gl.VERTEX_SHADER, vsSource);
+    var fs = compile(gl.FRAGMENT_SHADER, fsSource);
+    if (!vs || !fs) return;
+
+    var prog = gl.createProgram();
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      console.error('Shader link error:', gl.getProgramInfoLog(prog));
+      return;
+    }
+    gl.useProgram(prog);
+
+    /* Fullscreen quad: two triangles covering clip space */
+    var buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), gl.STATIC_DRAW);
+
+    var aPos = gl.getAttribLocation(prog, 'a_pos');
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+    var uTime = gl.getUniformLocation(prog, 'u_time');
+    var uRes  = gl.getUniformLocation(prog, 'u_resolution');
+
+    var start = performance.now();
+
+    function frame() {
+      var t = (performance.now() - start) * 0.001;
+      gl.uniform1f(uTime, t);
+      gl.uniform2f(uRes, canvas.width, canvas.height);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
   </script>
 </body>
 </html>
