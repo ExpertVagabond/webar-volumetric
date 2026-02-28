@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Volumetric Video — Purple Squirrel Media</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#08080f; --surface:#111119; --purple:#7611b7; --cyan:#00b5ad; --green:#00edaf; --text:#eae6f2; --text-dim:#7b7390; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{height:100%;overflow:hidden}
+    body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text)}
+
+    #viewer{position:fixed;inset:0}
+
+    .hud{position:fixed;top:0;left:0;right:0;z-index:10;padding:0.75rem 1rem;background:linear-gradient(180deg,rgba(8,8,15,0.9),transparent);display:flex;justify-content:space-between;align-items:center}
+    .hud h1{font-size:1.1rem;font-weight:700;background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .hud small{font-family:'JetBrains Mono',monospace;color:var(--text-dim);font-size:0.7rem}
+
+    .controls{position:fixed;bottom:0;left:0;right:0;z-index:10;padding:1rem;background:linear-gradient(0deg,rgba(8,8,15,0.95),transparent);display:flex;flex-direction:column;gap:0.75rem;align-items:center}
+    .btn-row{display:flex;gap:0.5rem}
+    .ctrl-btn{background:var(--surface);border:1px solid rgba(255,255,255,0.1);color:var(--text);font-family:'Outfit',sans-serif;font-weight:600;font-size:0.85rem;padding:0.6rem 1.2rem;border-radius:10px;cursor:pointer;transition:all 0.2s}
+    .ctrl-btn:active{transform:scale(0.95);background:var(--purple)}
+
+    .sliders{display:flex;gap:1rem;width:100%;max-width:400px}
+    .slider-group{flex:1;display:flex;flex-direction:column;gap:0.2rem}
+    .slider-group label{font-size:0.7rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace}
+    .slider-group input[type=range]{width:100%;accent-color:var(--purple);height:4px}
+
+    .badge{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:var(--text-dim);z-index:10;text-align:center;pointer-events:none}
+  </style>
+</head>
+<body>
+  <div id="viewer"></div>
+
+  <div class="hud">
+    <div>
+      <h1>Volumetric Video</h1>
+      <small>Purple Squirrel Media</small>
+    </div>
+  </div>
+
+  <div class="badge">orbit to view • billboard auto-faces camera</div>
+
+  <div class="controls">
+    <div class="btn-row">
+      <button class="ctrl-btn" id="play-btn">▶ Play</button>
+      <button class="ctrl-btn" id="mute-btn">🔇</button>
+    </div>
+    <div class="sliders">
+      <div class="slider-group">
+        <label>Similarity</label>
+        <input type="range" id="similarity" min="0" max="1" step="0.01" value="0.4">
+      </div>
+      <div class="slider-group">
+        <label>Smoothness</label>
+        <input type="range" id="smoothness" min="0" max="0.5" step="0.01" value="0.08">
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/app.js"></script>
+</body>
+</html>
