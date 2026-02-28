@@ -15,19 +15,21 @@
 
     .hud{position:fixed;top:0;left:0;right:0;z-index:10;padding:0.75rem 1rem;background:linear-gradient(180deg,rgba(8,8,15,0.9),transparent);display:flex;justify-content:space-between;align-items:center}
     .hud h1{font-size:1.1rem;font-weight:700;background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    .hud small{font-family:'JetBrains Mono',monospace;color:var(--text-dim);font-size:0.7rem}
+    .hud-right{display:flex;align-items:center;gap:0.5rem}
+    #demo-name{font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--cyan)}
 
     .controls{position:fixed;bottom:0;left:0;right:0;z-index:10;padding:1rem;background:linear-gradient(0deg,rgba(8,8,15,0.95),transparent);display:flex;flex-direction:column;gap:0.75rem;align-items:center}
-    .btn-row{display:flex;gap:0.5rem}
+    .btn-row{display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center}
     .ctrl-btn{background:var(--surface);border:1px solid rgba(255,255,255,0.1);color:var(--text);font-family:'Outfit',sans-serif;font-weight:600;font-size:0.85rem;padding:0.6rem 1.2rem;border-radius:10px;cursor:pointer;transition:all 0.2s}
     .ctrl-btn:active{transform:scale(0.95);background:var(--purple)}
+    .ctrl-btn.active{border-color:var(--green);color:var(--green)}
 
     .sliders{display:flex;gap:1rem;width:100%;max-width:400px}
     .slider-group{flex:1;display:flex;flex-direction:column;gap:0.2rem}
     .slider-group label{font-size:0.7rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace}
     .slider-group input[type=range]{width:100%;accent-color:var(--purple);height:4px}
 
-    .badge{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:var(--text-dim);z-index:10;text-align:center;pointer-events:none}
+    .info-badge{position:fixed;bottom:130px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim);z-index:10;text-align:center;pointer-events:none;max-width:350px;line-height:1.6}
   </style>
 </head>
 <body>
@@ -36,25 +38,31 @@
   <div class="hud">
     <div>
       <h1>Volumetric Video</h1>
-      <small>Purple Squirrel Media</small>
+      <small style="font-family:'JetBrains Mono',monospace;color:var(--text-dim);font-size:0.65rem">ChromaKey GLSL Shader</small>
+    </div>
+    <div class="hud-right">
+      <span id="demo-name">Dancing Robot</span>
     </div>
   </div>
 
-  <div class="badge">orbit to view • billboard auto-faces camera</div>
+  <div class="info-badge">
+    Canvas renders animated content on green background (left preview).<br>
+    ChromaKey GLSL shader removes green in real-time (center billboard).
+  </div>
 
   <div class="controls">
     <div class="btn-row">
-      <button class="ctrl-btn" id="play-btn">▶ Play</button>
-      <button class="ctrl-btn" id="mute-btn">🔇</button>
+      <button class="ctrl-btn active" id="toggle-chroma">ChromaKey: ON</button>
+      <button class="ctrl-btn" id="next-demo">Next Demo &rarr;</button>
     </div>
     <div class="sliders">
       <div class="slider-group">
         <label>Similarity</label>
-        <input type="range" id="similarity" min="0" max="1" step="0.01" value="0.4">
+        <input type="range" id="similarity" min="0" max="0.8" step="0.01" value="0.3">
       </div>
       <div class="slider-group">
         <label>Smoothness</label>
-        <input type="range" id="smoothness" min="0" max="0.5" step="0.01" value="0.08">
+        <input type="range" id="smoothness" min="0.01" max="0.5" step="0.01" value="0.1">
       </div>
     </div>
   </div>

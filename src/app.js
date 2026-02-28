@@ -1,12 +1,13 @@
 /**
- * Volumetric Video Showcase — chroma-key video on billboard plane.
- * Uses the ChromaKeyShader from webar-core (inlined for standalone build).
+ * Volumetric Video Showcase — chroma-key video with canvas-generated green screen demo.
+ * Renders animated content on a green background, then removes the green with GLSL.
+ * Shows the power of chroma-key compositing in real-time WebGL.
  */
 
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
-// ── ChromaKey Shader (from webar-core) ──
+// ── ChromaKey Shader ──
 const chromaKeyVertexShader = `
   varying vec2 vUv;
   void main() {
@@ -42,120 +43,152 @@ const chromaKeyFragmentShader = `
   }
 `
 
-// ── Config ──
-const DEMO_VIDEOS = [
-  {
-    name: 'Green Screen Demo',
-    url: 'https://www.w3schools.com/html/mov_bbb.mp4',
-    keyColor: [0, 1, 0],
-    useChromaKey: false, // This demo video has no green screen
-  },
-]
+let renderer, scene, camera, controls, videoMesh, clock
+let sourceCanvas, sourceCtx, sourceTexture
+let chromaKeyEnabled = true
+let animationFrame = 0
 
-// ── App State ──
-let renderer, scene, camera, controls, videoMesh, videoEl, playing = false
+// Demo characters to render on green screen
+const DEMOS = [
+  { name: 'Dancing Robot', draw: drawRobot },
+  { name: 'Spinning Logo', draw: drawLogo },
+  { name: 'Particle Storm', draw: drawParticles },
+]
+let currentDemo = 0
 
 function init() {
   const container = document.getElementById('viewer')
+  clock = new THREE.Clock()
 
-  // Renderer
   renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true })
   renderer.setSize(window.innerWidth, window.innerHeight)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   container.appendChild(renderer.domElement)
 
-  // Scene
   scene = new THREE.Scene()
 
-  // Camera
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100)
-  camera.position.set(0, 1, 3)
+  camera.position.set(0, 1.2, 3.5)
 
-  // Controls
   controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
   controls.target.set(0, 0.8, 0)
+  controls.maxPolarAngle = Math.PI / 2 + 0.1
+  controls.minDistance = 1.5
+  controls.maxDistance = 8
 
   // Lights
-  scene.add(new THREE.AmbientLight(0xffffff, 0.5))
-  const dir = new THREE.DirectionalLight(0xffffff, 1)
+  scene.add(new THREE.AmbientLight(0xffffff, 0.4))
+  const dir = new THREE.DirectionalLight(0xffffff, 0.8)
   dir.position.set(2, 3, 2)
   scene.add(dir)
 
   // Ground
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(10, 10),
+    new THREE.PlaneGeometry(12, 12),
     new THREE.MeshStandardMaterial({ color: 0x111119, roughness: 0.9 })
   )
   ground.rotation.x = -Math.PI / 2
   scene.add(ground)
 
-  const grid = new THREE.GridHelper(10, 20, 0x333366, 0x1a1a2e)
-  grid.material.opacity = 0.3
+  const grid = new THREE.GridHelper(12, 24, 0x333366, 0x1a1a2e)
+  grid.material.opacity = 0.2
   grid.material.transparent = true
   scene.add(grid)
 
-  // Pedestal ring (glow effect)
+  // Stage — circular platform with glow ring
+  const platform = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.8, 0.9, 0.06, 48),
+    new THREE.MeshStandardMaterial({ color: 0x1a1a2e, metalness: 0.8, roughness: 0.2 })
+  )
+  platform.position.y = 0.03
+  scene.add(platform)
+
   const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.5, 0.02, 16, 64),
-    new THREE.MeshBasicMaterial({ color: 0x7611b7 })
+    new THREE.TorusGeometry(0.85, 0.02, 16, 64),
+    new THREE.MeshBasicMaterial({ color: 0x7611b7, transparent: true, opacity: 0.6 })
   )
   ring.rotation.x = -Math.PI / 2
-  ring.position.y = 0.01
+  ring.position.y = 0.07
   scene.add(ring)
 
-  // Video element
-  videoEl = document.createElement('video')
-  videoEl.crossOrigin = 'anonymous'
-  videoEl.loop = true
-  videoEl.muted = true
-  videoEl.playsInline = true
-  videoEl.src = DEMO_VIDEOS[0].url
+  // Vertical light pillars
+  for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2
+    const pillar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.01, 0.01, 2.5, 8),
+      new THREE.MeshBasicMaterial({ color: 0x7611b7, transparent: true, opacity: 0.15 })
+    )
+    pillar.position.set(Math.cos(angle) * 0.85, 1.3, Math.sin(angle) * 0.85)
+    scene.add(pillar)
+  }
 
-  const videoTexture = new THREE.VideoTexture(videoEl)
-  videoTexture.minFilter = THREE.LinearFilter
-  videoTexture.magFilter = THREE.LinearFilter
+  // Canvas-based green screen source
+  sourceCanvas = document.createElement('canvas')
+  sourceCanvas.width = 512
+  sourceCanvas.height = 512
+  sourceCtx = sourceCanvas.getContext('2d')
 
-  // Video billboard (always faces camera via lookAt in tick)
-  const aspect = 16 / 9
-  const height = 1.5
-  const width = height * aspect
+  sourceTexture = new THREE.CanvasTexture(sourceCanvas)
+  sourceTexture.minFilter = THREE.LinearFilter
+  sourceTexture.magFilter = THREE.LinearFilter
 
-  const material = DEMO_VIDEOS[0].useChromaKey
-    ? new THREE.ShaderMaterial({
-        uniforms: {
-          tex: { value: videoTexture },
-          keyColor: { value: new THREE.Color(...DEMO_VIDEOS[0].keyColor) },
-          similarity: { value: 0.4 },
-          smoothness: { value: 0.08 },
-          spill: { value: 0.1 },
-        },
-        vertexShader: chromaKeyVertexShader,
-        fragmentShader: chromaKeyFragmentShader,
-        transparent: true,
-        side: THREE.DoubleSide,
-      })
-    : new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide })
+  // Video billboard with chroma-key shader
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      tex: { value: sourceTexture },
+      keyColor: { value: new THREE.Color(0, 1, 0) },
+      similarity: { value: 0.3 },
+      smoothness: { value: 0.1 },
+      spill: { value: 0.15 },
+    },
+    vertexShader: chromaKeyVertexShader,
+    fragmentShader: chromaKeyFragmentShader,
+    transparent: true,
+    side: THREE.DoubleSide,
+  })
 
-  videoMesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), material)
-  videoMesh.position.set(0, height / 2 + 0.1, 0)
+  videoMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), material)
+  videoMesh.position.set(0, 0.85, 0)
   scene.add(videoMesh)
 
-  // Controls
-  document.getElementById('play-btn').onclick = togglePlay
-  document.getElementById('mute-btn').onclick = toggleMute
+  // Also show the raw source as small preview
+  const previewMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.5, 0.5),
+    new THREE.MeshBasicMaterial({ map: sourceTexture, side: THREE.DoubleSide })
+  )
+  previewMesh.position.set(-2, 0.5, 0)
+  previewMesh.userData.isPreview = true
+  scene.add(previewMesh)
 
-  // Chroma key controls
-  document.getElementById('similarity').oninput = (e) => {
-    if (videoMesh.material.uniforms) {
-      videoMesh.material.uniforms.similarity.value = parseFloat(e.target.value)
+  // Label for preview
+  const previewLabel = document.createElement('div')
+  previewLabel.style.cssText = 'font-size:0.55rem;color:#7b7390;font-family:"JetBrains Mono",monospace;text-align:center;pointer-events:none'
+  previewLabel.textContent = 'Source (green screen)'
+
+  // Controls
+  document.getElementById('toggle-chroma').onclick = () => {
+    chromaKeyEnabled = !chromaKeyEnabled
+    if (chromaKeyEnabled) {
+      videoMesh.material = material
+      document.getElementById('toggle-chroma').textContent = 'ChromaKey: ON'
+    } else {
+      videoMesh.material = new THREE.MeshBasicMaterial({ map: sourceTexture, side: THREE.DoubleSide })
+      document.getElementById('toggle-chroma').textContent = 'ChromaKey: OFF'
     }
   }
+
+  document.getElementById('next-demo').onclick = () => {
+    currentDemo = (currentDemo + 1) % DEMOS.length
+    document.getElementById('demo-name').textContent = DEMOS[currentDemo].name
+  }
+
+  document.getElementById('similarity').oninput = (e) => {
+    material.uniforms.similarity.value = parseFloat(e.target.value)
+  }
   document.getElementById('smoothness').oninput = (e) => {
-    if (videoMesh.material.uniforms) {
-      videoMesh.material.uniforms.smoothness.value = parseFloat(e.target.value)
-    }
+    material.uniforms.smoothness.value = parseFloat(e.target.value)
   }
 
   window.addEventListener('resize', () => {
@@ -167,30 +200,217 @@ function init() {
   animate()
 }
 
-function togglePlay() {
-  if (playing) {
-    videoEl.pause()
-    document.getElementById('play-btn').textContent = '▶ Play'
-  } else {
-    videoEl.play()
-    document.getElementById('play-btn').textContent = '⏸ Pause'
-  }
-  playing = !playing
+// ── Canvas Drawing Functions (simulate green screen content) ──
+
+function drawRobot(ctx, w, h, t) {
+  // Green background
+  ctx.fillStyle = '#00ff00'
+  ctx.fillRect(0, 0, w, h)
+
+  const cx = w / 2
+  const cy = h / 2
+
+  // Body sway
+  const sway = Math.sin(t * 3) * 15
+
+  ctx.save()
+  ctx.translate(cx + sway, cy + 30)
+
+  // Body
+  ctx.fillStyle = '#4466ff'
+  ctx.fillRect(-40, -30, 80, 80)
+
+  // Head
+  ctx.fillStyle = '#5577ff'
+  ctx.fillRect(-30, -70, 60, 45)
+
+  // Eyes
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(-20, -60, 15, 15)
+  ctx.fillRect(5, -60, 15, 15)
+  // Pupils (follow a pattern)
+  ctx.fillStyle = '#000000'
+  const px = Math.sin(t * 2) * 4
+  ctx.fillRect(-16 + px, -56, 7, 7)
+  ctx.fillRect(9 + px, -56, 7, 7)
+
+  // Mouth (opens and closes)
+  ctx.fillStyle = '#ff4466'
+  const mouthH = 3 + Math.abs(Math.sin(t * 4)) * 8
+  ctx.fillRect(-15, -42, 30, mouthH)
+
+  // Arms
+  const armAngle = Math.sin(t * 2.5) * 30
+  ctx.save()
+  ctx.translate(-40, -10)
+  ctx.rotate(armAngle * Math.PI / 180)
+  ctx.fillStyle = '#4466ff'
+  ctx.fillRect(-8, 0, 16, 50)
+  ctx.fillStyle = '#cccccc'
+  ctx.beginPath()
+  ctx.arc(0, 55, 10, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+
+  ctx.save()
+  ctx.translate(40, -10)
+  ctx.rotate(-armAngle * Math.PI / 180)
+  ctx.fillStyle = '#4466ff'
+  ctx.fillRect(-8, 0, 16, 50)
+  ctx.fillStyle = '#cccccc'
+  ctx.beginPath()
+  ctx.arc(0, 55, 10, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+
+  // Legs (walking motion)
+  const legAngle = Math.sin(t * 3) * 20
+  ctx.save()
+  ctx.translate(-20, 50)
+  ctx.rotate(legAngle * Math.PI / 180)
+  ctx.fillStyle = '#3355cc'
+  ctx.fillRect(-8, 0, 16, 50)
+  ctx.restore()
+  ctx.save()
+  ctx.translate(20, 50)
+  ctx.rotate(-legAngle * Math.PI / 180)
+  ctx.fillStyle = '#3355cc'
+  ctx.fillRect(-8, 0, 16, 50)
+  ctx.restore()
+
+  // Antenna
+  ctx.strokeStyle = '#cccccc'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.moveTo(0, -70)
+  ctx.lineTo(Math.sin(t * 5) * 10, -90)
+  ctx.stroke()
+  ctx.fillStyle = '#ff4466'
+  ctx.beginPath()
+  ctx.arc(Math.sin(t * 5) * 10, -93, 5, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.restore()
 }
 
-function toggleMute() {
-  videoEl.muted = !videoEl.muted
-  document.getElementById('mute-btn').textContent = videoEl.muted ? '🔇' : '🔊'
+function drawLogo(ctx, w, h, t) {
+  ctx.fillStyle = '#00ff00'
+  ctx.fillRect(0, 0, w, h)
+
+  const cx = w / 2
+  const cy = h / 2
+
+  // Spinning hexagon
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.rotate(t * 0.5)
+
+  const size = 80 + Math.sin(t * 2) * 20
+  ctx.beginPath()
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2 - Math.PI / 2
+    const x = Math.cos(angle) * size
+    const y = Math.sin(angle) * size
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  }
+  ctx.closePath()
+  ctx.fillStyle = '#7611b7'
+  ctx.fill()
+  ctx.strokeStyle = '#00edaf'
+  ctx.lineWidth = 3
+  ctx.stroke()
+
+  // PSM text
+  ctx.rotate(-t * 0.5) // counter-rotate text
+  ctx.fillStyle = '#ffffff'
+  ctx.font = 'bold 36px sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('PSM', 0, 0)
+
+  ctx.font = '12px sans-serif'
+  ctx.fillStyle = '#00edaf'
+  ctx.fillText('Purple Squirrel Media', 0, 25)
+
+  ctx.restore()
+
+  // Orbiting circles
+  for (let i = 0; i < 5; i++) {
+    const angle = t * 1.5 + (i / 5) * Math.PI * 2
+    const r = 120
+    const x = cx + Math.cos(angle) * r
+    const y = cy + Math.sin(angle) * r
+    ctx.beginPath()
+    ctx.arc(x, y, 8, 0, Math.PI * 2)
+    ctx.fillStyle = ['#00edaf', '#00b5ad', '#7611b7', '#ff4466', '#ffc828'][i]
+    ctx.fill()
+  }
+}
+
+function drawParticles(ctx, w, h, t) {
+  ctx.fillStyle = '#00ff00'
+  ctx.fillRect(0, 0, w, h)
+
+  const cx = w / 2
+  const cy = h / 2
+
+  // Particle burst
+  for (let i = 0; i < 60; i++) {
+    const seed = i * 137.508
+    const angle = seed + t * (0.3 + (i % 5) * 0.1)
+    const r = 30 + (i * 3 + t * 40) % 200
+    const x = cx + Math.cos(angle) * r
+    const y = cy + Math.sin(angle) * r
+    const size = 2 + Math.sin(t * 3 + i) * 2
+
+    const colors = ['#7611b7', '#00edaf', '#00b5ad', '#ff4466', '#ffc828', '#ffffff']
+    ctx.beginPath()
+    ctx.arc(x, y, size, 0, Math.PI * 2)
+    ctx.fillStyle = colors[i % colors.length]
+    ctx.fill()
+  }
+
+  // Center glow text
+  ctx.fillStyle = '#ffffff'
+  ctx.font = 'bold 28px sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  const scale = 1 + Math.sin(t * 2) * 0.1
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.scale(scale, scale)
+  ctx.fillText('VOLUMETRIC', 0, -10)
+  ctx.font = '14px sans-serif'
+  ctx.fillStyle = '#00edaf'
+  ctx.fillText('chroma-key demo', 0, 15)
+  ctx.restore()
 }
 
 function animate() {
   requestAnimationFrame(animate)
+  const t = clock.getElapsedTime()
   controls.update()
+  animationFrame++
+
+  // Update canvas source (green screen content)
+  DEMOS[currentDemo].draw(sourceCtx, sourceCanvas.width, sourceCanvas.height, t)
+  sourceTexture.needsUpdate = true
 
   // Billboard: face camera (Y-axis only)
   if (videoMesh) {
     videoMesh.lookAt(camera.position.x, videoMesh.position.y, camera.position.z)
   }
+
+  // Animate ring glow
+  scene.traverse((obj) => {
+    if (obj.geometry?.type === 'TorusGeometry') {
+      obj.material.opacity = 0.4 + Math.sin(t * 2) * 0.2
+    }
+    if (obj.userData?.isPreview) {
+      obj.lookAt(camera.position.x, obj.position.y, camera.position.z)
+    }
+  })
 
   renderer.render(scene, camera)
 }
