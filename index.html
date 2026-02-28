@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Volumetric Video — Purple Squirrel Media</title>
+  <meta name="description" content="Real-time chroma-key compositing showcase. Canvas-rendered content on green screen with GLSL shader removal. AI scene generation and AR camera mode.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root { --bg:#08080f; --surface:#111119; --purple:#7611b7; --cyan:#00b5ad; --green:#00edaf; --text:#eae6f2; --text-dim:#7b7390; }
@@ -29,7 +31,8 @@
     .slider-group label{font-size:0.7rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace}
     .slider-group input[type=range]{width:100%;accent-color:var(--purple);height:4px}
 
-    .info-badge{position:fixed;bottom:130px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim);z-index:10;text-align:center;pointer-events:none;max-width:350px;line-height:1.6}
+    .info-badge{position:fixed;bottom:150px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim);z-index:10;text-align:center;pointer-events:none;max-width:350px;line-height:1.6}
+    @media (max-width:500px){.info-badge{display:none}.btn-row{gap:0.3rem}.ctrl-btn{font-size:0.75rem;padding:0.5rem 0.8rem}}
   </style>
 </head>
 <body>
