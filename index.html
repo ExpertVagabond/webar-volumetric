@@ -57,10 +57,24 @@
     .psm-footer-link{flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim);text-decoration:none;padding:0.25rem 0.5rem;border-radius:6px;border:1px solid rgba(255,255,255,0.04);transition:all 0.2s;white-space:nowrap}
     .psm-footer-link:hover{color:var(--text);border-color:rgba(139,92,246,0.2);background:rgba(139,92,246,0.06)}
     .psm-footer-link.current{color:#8b5cf6;border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.08)}
+
+    /* ── Loading splash ── */
+    .splash{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;transition:opacity .5s,visibility .5s}
+    .splash.done{opacity:0;visibility:hidden;pointer-events:none}
+    .splash-logo{width:48px;height:48px;border-radius:50%;animation:splashPulse 1.2s ease-in-out infinite}
+    .splash-bar{width:100px;height:3px;border-radius:2px;background:rgba(255,255,255,.05);overflow:hidden}
+    .splash-bar-fill{height:100%;width:0;border-radius:2px;background:linear-gradient(90deg,var(--purple),var(--cyan,#00b5ad));animation:splashLoad .8s ease-out forwards}
+    @keyframes splashPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.08);opacity:.7}}
+    @keyframes splashLoad{to{width:100%}}
   </style>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Volumetric Video","description":"Real-time chroma-key compositing with GLSL shader removal. AI scene generation and AR camera mode.","applicationCategory":"WebApplication","operatingSystem":"Web Browser","author":{"@type":"Organization","name":"Purple Squirrel Media","url":"https://purplesquirrelmedia.io"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
 </head>
 <body>
+
+  <div class="splash" id="splash">
+    <img src="/logo-nav.jpg" alt="PSM" class="splash-logo">
+    <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+  </div>
   <div id="viewer"></div>
 
   <div class="hud">
@@ -120,5 +134,9 @@
   </div>
 
   <script type="module" src="/src/app.js"></script>
+  <script>
+  window.addEventListener('load',()=>setTimeout(()=>document.getElementById('splash').classList.add('done'),800));
+  document.querySelectorAll('.psm-footer-link').forEach(l=>{l.addEventListener('mouseenter',()=>{if(l.classList.contains('current'))return;const p=document.createElement('link');p.rel='prefetch';p.href=l.href;if(!document.querySelector('link[href="'+l.href+'"]'))document.head.appendChild(p)},{once:true})});
+  </script>
 </body>
 </html>
