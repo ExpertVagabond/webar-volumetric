@@ -128,7 +128,7 @@ function init() {
 
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(0.85, 0.02, 16, 64),
-    new THREE.MeshBasicMaterial({ color: 0x7611b7, transparent: true, opacity: 0.6 })
+    new THREE.MeshBasicMaterial({ color: 0x8b5cf6, transparent: true, opacity: 0.6 })
   )
   ring.rotation.x = -Math.PI / 2
   ring.position.y = 0.07
@@ -139,7 +139,7 @@ function init() {
     const angle = (i / 4) * Math.PI * 2
     const pillar = new THREE.Mesh(
       new THREE.CylinderGeometry(0.01, 0.01, 2.5, 8),
-      new THREE.MeshBasicMaterial({ color: 0x7611b7, transparent: true, opacity: 0.15 })
+      new THREE.MeshBasicMaterial({ color: 0x8b5cf6, transparent: true, opacity: 0.15 })
     )
     pillar.position.set(Math.cos(angle) * 0.85, 1.3, Math.sin(angle) * 0.85)
     scene.add(pillar)
@@ -450,7 +450,7 @@ function drawLogo(ctx, w, h, t) {
     else ctx.lineTo(x, y)
   }
   ctx.closePath()
-  ctx.fillStyle = '#7611b7'
+  ctx.fillStyle = '#8b5cf6'
   ctx.fill()
   ctx.strokeStyle = '#00edaf'
   ctx.lineWidth = 3
@@ -478,7 +478,7 @@ function drawLogo(ctx, w, h, t) {
     const y = cy + Math.sin(angle) * r
     ctx.beginPath()
     ctx.arc(x, y, 8, 0, Math.PI * 2)
-    ctx.fillStyle = ['#00edaf', '#00b5ad', '#7611b7', '#ff4466', '#ffc828'][i]
+    ctx.fillStyle = ['#00edaf', '#00b5ad', '#8b5cf6', '#ff4466', '#ffc828'][i]
     ctx.fill()
   }
 }
@@ -499,7 +499,7 @@ function drawParticles(ctx, w, h, t) {
     const y = cy + Math.sin(angle) * r
     const size = 2 + Math.sin(t * 3 + i) * 2
 
-    const colors = ['#7611b7', '#00edaf', '#00b5ad', '#ff4466', '#ffc828', '#ffffff']
+    const colors = ['#8b5cf6', '#00edaf', '#00b5ad', '#ff4466', '#ffc828', '#ffffff']
     ctx.beginPath()
     ctx.arc(x, y, size, 0, Math.PI * 2)
     ctx.fillStyle = colors[i % colors.length]
