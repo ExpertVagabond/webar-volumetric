@@ -7,6 +7,8 @@
   <meta name="description" content="Real-time chroma-key compositing showcase. Canvas-rendered content on green screen with GLSL shader removal. AI scene generation and AR camera mode.">
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#8b5cf6">
   <meta property="og:title" content="Volumetric Video — Purple Squirrel Media">
   <meta property="og:description" content="Real-time chroma-key compositing with GLSL shader removal. AI scene generation and AR camera mode.">
   <meta property="og:image" content="/og-image.png">
@@ -38,6 +40,18 @@
 
     .info-badge{position:fixed;bottom:150px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim);z-index:10;text-align:center;pointer-events:none;max-width:350px;line-height:1.6}
     @media (max-width:500px){.info-badge{display:none}.btn-row{gap:0.3rem}.ctrl-btn{font-size:0.75rem;padding:0.5rem 0.8rem}}
+
+    /* ── PSM Cross-Product Footer ── */
+    .psm-footer{position:fixed;bottom:0;left:0;right:0;z-index:30;pointer-events:none;opacity:0;transition:opacity 0.4s}
+    .psm-footer.show{opacity:1;pointer-events:auto}
+    .psm-footer-inner{display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;background:rgba(8,8,15,0.92);backdrop-filter:blur(16px);border-top:1px solid rgba(139,92,246,0.1);overflow-x:auto}
+    .psm-footer-brand{display:flex;align-items:center;gap:0.4rem;flex-shrink:0;text-decoration:none;color:var(--text);font-weight:700;font-size:0.7rem;padding-right:0.5rem;border-right:1px solid rgba(255,255,255,0.06)}
+    .psm-footer-brand img{width:20px;height:20px;border-radius:50%}
+    .psm-footer-links{display:flex;gap:0.3rem;flex:1;overflow-x:auto;scrollbar-width:none}
+    .psm-footer-links::-webkit-scrollbar{display:none}
+    .psm-footer-link{flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--text-dim);text-decoration:none;padding:0.25rem 0.5rem;border-radius:6px;border:1px solid rgba(255,255,255,0.04);transition:all 0.2s;white-space:nowrap}
+    .psm-footer-link:hover{color:var(--text);border-color:rgba(139,92,246,0.2);background:rgba(139,92,246,0.06)}
+    .psm-footer-link.current{color:#8b5cf6;border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.08)}
   </style>
 </head>
 <body>
@@ -80,6 +94,20 @@
       <div class="slider-group">
         <label>Smoothness</label>
         <input type="range" id="smoothness" min="0.01" max="0.5" step="0.01" value="0.1">
+      </div>
+    </div>
+  </div>
+
+  <div class="psm-footer show">
+    <div class="psm-footer-inner">
+      <a href="https://purplesquirrelmedia.io" target="_blank" class="psm-footer-brand"><img src="/logo-nav.jpg" alt="PSM">PSM</a>
+      <div class="psm-footer-links">
+        <a href="https://psm-webar-portfolio.pages.dev" class="psm-footer-link">Portfolio</a>
+        <a href="https://webar-face-filters.pages.dev" class="psm-footer-link">Face Filters</a>
+        <a href="https://webar-ecommerce.pages.dev" class="psm-footer-link">AR Shop</a>
+        <a href="https://webar-volumetric.pages.dev" class="psm-footer-link current">Volumetric</a>
+        <a href="https://webar-scavenger-hunt.pages.dev" class="psm-footer-link">Scavenger Hunt</a>
+        <a href="https://webar-game-kit.pages.dev" class="psm-footer-link">Mini Golf</a>
       </div>
     </div>
   </div>
